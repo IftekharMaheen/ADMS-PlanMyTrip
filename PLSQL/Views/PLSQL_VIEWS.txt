@@ -1,0 +1,136 @@
+1. View Users 
+
+CREATE OR REPLACE PROCEDURE fetch_users (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT username, name, email, phonenumber, dob, profilepic
+    FROM vw_users;
+END fetch_users;
+
+ 
+// php code
+
+
+BEGIN fetch_users(:result); END;
+
+
+
+2. Show User Balance 
+
+CREATE OR REPLACE PROCEDURE fetch_users_wallet_info (result OUT SYS_REFCURSOR) AS
+
+BEGIN
+
+    OPEN result FOR
+
+    SELECT username, phonenumber, balance, paymentmethod
+
+    FROM vw_wallet;
+
+END;
+BEGIN fetch_users_wallet_info(:result); END;
+
+
+3. View Contact Info
+
+CREATE OR REPLACE PROCEDURE fetch_contact_info (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT contactname, email, phonenumber
+    FROM vw_contactinfo;
+END;
+ 
+// PHP
+BEGIN fetch_contact_info(:result); END;
+
+4. // Tour Packages
+CREATE OR REPLACE PROCEDURE fetch_tour_packages (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT packageid, hotelid, packagename, destination, days, meals, price
+    FROM vw_tourpackages;
+END;
+ 
+// PHP
+BEGIN fetch_tour_packages(:result); END;
+
+
+
+5. // Rating
+CREATE OR REPLACE PROCEDURE fetch_review (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT id, username, rating, description, servicetype, reviewdate
+    FROM vw_review;
+END;
+ 
+// PHP
+BEGIN fetch_review(:result); END;
+
+
+
+6. // Transactions
+CREATE OR REPLACE PROCEDURE fetch_transaction (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT paymentid, username, usermethod, cardnumber, mobilenumber, amount
+    FROM vw_transaction;
+END;
+ 
+// PHP
+BEGIN fetch_transaction(:result); END;
+
+
+
+7. // View for Max 3 Balance Persons
+CREATE OR REPLACE VIEW vw_max_three_balance AS
+SELECT users.name, users.email, users.phonenumber, wallet.balance FROM users, wallet WHERE users.username = wallet.username AND users.username IN (SELECT username FROM (SELECT username FROM wallet ORDER BY balance DESC) WHERE ROWNUM <= 3)
+ 
+// Procedure
+CREATE OR REPLACE PROCEDURE fetch_max_three_balance (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT name, email, phonenumber, balance
+    FROM vw_max_three_balance;
+END;
+ 
+// PHP
+BEGIN fetch_max_three_balance(:result); END;
+
+
+8. // View for Min 3 Balance Persons
+CREATE OR REPLACE VIEW vw_min_three_balance as
+SELECT users.name, users.email, users.phonenumber, wallet.balance FROM users, wallet WHERE users.username = wallet.username AND users.username IN (SELECT username FROM (SELECT username FROM wallet ORDER BY balance ASC) WHERE ROWNUM <= 3)
+ 
+// Procedure
+CREATE OR REPLACE PROCEDURE fetch_min_three_balance (result OUT SYS_REFCURSOR) AS
+BEGIN
+    OPEN result FOR
+    SELECT name, email, phonenumber, balance
+    FROM vw_min_three_balance;
+END;
+ 
+// PHP
+BEGIN fetch_min_three_balance(:result); END;
+
+
+
+9. // View - Criteria Based Search on Review
+CREATE OR REPLACE PROCEDURE fetch_filtered_reviews(
+    p_rating      IN review.rating%TYPE,
+    p_servicetype IN review.servicetype%TYPE,
+    p_start_date  IN review.reviewdate%TYPE,
+    p_end_date    IN review.reviewdate%TYPE,
+    p_cursor      OUT SYS_REFCURSOR
+) IS
+BEGIN
+    OPEN p_cursor FOR
+        SELECT id, username, rating, description, servicetype, reviewdate
+        FROM review
+        WHERE (rating = p_rating)
+          AND (servicetype = p_servicetype)
+          AND (reviewdate >= p_start_date)
+          AND (reviewdate <= p_end_date);
+END;
+
+

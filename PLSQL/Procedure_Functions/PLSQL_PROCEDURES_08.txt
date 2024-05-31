@@ -1,0 +1,106 @@
+// Signup : Insert User
+
+P1: Procedure - Insert Operation of User
+
+CREATE OR REPLACE PROCEDURE OpenUserAccount(
+    p_username IN users.username%TYPE,
+    p_name IN users.name%TYPE,
+    p_email IN users.email%TYPE,
+    p_phonenumber IN users.phonenumber%TYPE,
+    p_dob IN users.dob%TYPE,
+    p_profilepic IN users.profilepic%TYPE,
+    p_password IN authinfo.password%TYPE,
+    p_role IN authinfo.role%TYPE,
+    p_wallet_phonenumber IN wallet.phonenumber%TYPE,
+    result_out OUT NUMBER
+)
+IS
+BEGIN
+    -- Insert into users table
+    INSERT INTO users(username, name, email, phonenumber, dob, profilepic)
+    VALUES (p_username, p_name, p_email, p_phonenumber, p_dob, p_profilepic);
+
+    -- Insert into authinfo table
+    INSERT INTO authinfo(username, password, role)
+    VALUES (p_username, p_password, p_role);
+
+    -- Insert into wallet table with an initial balance of 0
+    INSERT INTO wallet(username, phonenumber, balance, paymentmethod)
+    VALUES (p_username, p_wallet_phonenumber, 0, 'initial');
+
+    COMMIT;
+    result_out := 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        result_out := 0;
+END;
+
+
+// SAMPLE PHP CODE
+
+<?php
+// Function to open a user account
+function openUserAccount($userData) {
+    // Connection configuration
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    // Connect to Oracle database
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    // Prepare the Oracle statement
+    $sql = 'BEGIN OpenUserAccount(:p_username, :p_name, :p_email, :p_phonenumber, :p_dob, :p_profilepic, :p_password, :p_role, :p_wallet_phonenumber, :result_out); END;';
+    $stmt = oci_parse($conn, $sql);
+
+    // Bind the input and output parameters
+    oci_bind_by_name($stmt, ':p_username', $userData['username']);
+    oci_bind_by_name($stmt, ':p_name', $userData['name']);
+    oci_bind_by_name($stmt, ':p_email', $userData['email']);
+    oci_bind_by_name($stmt, ':p_phonenumber', $userData['phonenumber']);
+    oci_bind_by_name($stmt, ':p_dob', $userData['dob']);
+    oci_bind_by_name($stmt, ':p_profilepic', $userData['profilepic']);
+    oci_bind_by_name($stmt, ':p_password', $userData['password']);
+    oci_bind_by_name($stmt, ':p_role', $userData['role']);
+    oci_bind_by_name($stmt, ':p_wallet_phonenumber', $userData['phonenumber']); // Assuming same phone number for wallet
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    // Execute the statement
+    if (!oci_execute($stmt)) {
+        $e = oci_error($stmt);
+        echo "Error executing procedure: " . $e['message'] . "\n";
+        oci_close($conn);
+        return;
+    }
+
+    // Check the result
+    if ($result == 1) {
+        echo "User account created successfully.\n";
+    } else {
+        echo "Failed to create user account.\n";
+    }
+
+    // Free resources and close the connection
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+// Example usage
+$userData = [
+    'username' => 'user123',
+    'name' => 'John Doe',
+    'email' => 'john.doe@example.com',
+    'phonenumber' => '1234567890',
+    'dob' => '1990-01-01', // Ensure this is formatted correctly for Oracle DATE
+    'profilepic' => 'http://example.com/profilepic.jpg',
+    'password' => 'SecurePassword123',
+    'role' => 'User'
+];
+openUserAccount($userData);
+?>

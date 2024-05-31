@@ -1,0 +1,55 @@
+// User - Update Profile
+
+P1: Procedure - Update Profile Data
+
+CREATE OR REPLACE PROCEDURE update_user_info (
+    p_username IN users.username%TYPE,
+    p_name IN users.name%TYPE,
+    p_email IN users.email%TYPE,
+    p_dob IN users.dob%TYPE
+) AS
+BEGIN
+    UPDATE users
+    SET name = p_name,
+        email = p_email,
+        dob = p_dob
+    WHERE username = p_username;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        raise_application_error(-20001, 'No user found with the provided username.');
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'An error occurred while updating user information: ' || SQLERRM);
+END;
+
+
+// Sample PHP CODE:
+
+<?php
+function updateUserInformation($username, $name, $email, $dob) {
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN update_user_info(:p_username, :p_name, :p_email, :p_dob); END;');
+    oci_bind_by_name($stmt, ':p_username', $username);
+    oci_bind_by_name($stmt, ':p_name', $name);
+    oci_bind_by_name($stmt, ':p_email', $email);
+    oci_bind_by_name($stmt, ':p_dob', $dob);
+
+    oci_execute($stmt);
+
+    echo "User information updated successfully for username $username.";
+
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+// Example usage
+updateUserInformation('john_doe', 'John Doe', 'john.doe@example.com', '1990-01-01');
+?>

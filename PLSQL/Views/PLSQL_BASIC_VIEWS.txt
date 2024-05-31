@@ -1,0 +1,53 @@
+CREATE OR REPLACE VIEW vw_users AS
+SELECT *
+FROM users;
+
+
+CREATE OR REPLACE VIEW vw_review AS
+SELECT *
+FROM review;
+
+
+CREATE OR REPLACE VIEW vw_transaction AS
+SELECT *
+FROM transaction;
+
+
+CREATE OR REPLACE VIEW vw_wallet AS
+SELECT *
+FROM wallet;
+
+
+CREATE OR REPLACE VIEW vw_contactinfo AS
+SELECT *
+FROM contactinfo;
+
+
+CREATE OR REPLACE VIEW vw_admin AS
+SELECT *
+FROM admin;
+
+
+CREATE OR REPLACE VIEW vw_authinfo AS
+SELECT *
+FROM authinfo;
+
+
+CREATE OR REPLACE VIEW vw_hotelmgt AS
+SELECT *
+FROM hotelmgt;
+
+
+CREATE OR REPLACE VIEW vw_rooms AS
+SELECT *
+FROM rooms;
+
+
+CREATE OR REPLACE VIEW vw_tourpackages AS
+SELECT *
+FROM tourpackages;
+
+
+CREATE OR REPLACE VIEW vw_purchasehistory AS
+SELECT *
+FROM purchasehistory;

@@ -1,0 +1,12 @@
+// User : Wallet Update Trigger at Certain Amount
+
+T1: Trigger - Prevent Balance Update which will make the value over 10,00,000
+
+CREATE OR REPLACE TRIGGER PreventExcessiveBalance
+BEFORE UPDATE ON wallet
+FOR EACH ROW
+BEGIN
+    IF :NEW.balance > 1000000 THEN
+        raise_application_error(-20002, 'Balance cannot exceed 10,00,000!');
+    END IF;
+END;

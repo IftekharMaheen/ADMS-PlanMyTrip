@@ -1,0 +1,73 @@
+// Admin: Delete Tour Packages
+
+P1: Prodecure - Delete Tour Packages using Procedure
+
+CREATE OR REPLACE PROCEDURE DeleteTourPackage(
+	p_packageid tourpackages.packageid%type,
+	result_out OUT NUMBER) 
+IS
+    count_exists NUMBER;
+BEGIN
+    DELETE FROM tourpackages WHERE packageid = p_packageid;
+
+    SELECT COUNT(*) INTO count_exists FROM tourpackages WHERE packageid = p_packageid;
+
+    IF count_exists = 0 THEN
+        COMMIT;
+        result_out := 1;
+    ELSE
+        ROLLBACK;
+        result_out := 0;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        result_out := -1;
+END;
+
+
+// Sample SQL Code
+
+<?php
+// Connection configuration
+$connectionString = 'localhost/orcl'; // Adjust as necessary
+$username = 'oracle_user'; // Your Oracle username
+$password = 'oracle_password'; // Your Oracle password
+
+// Connect to Oracle database
+$conn = oci_connect($username, $password, $connectionString);
+if (!$conn) {
+    $e = oci_error();
+    trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+}
+
+// Prepare the Oracle statement
+$sql = 'BEGIN DeleteTourPackage(:p_packageid, :result_out); END;';
+$stmt = oci_parse($conn, $sql);
+
+// Package ID to delete
+$packageToDelete = 101; // Specify the package ID to delete
+
+// Bind the parameters
+oci_bind_by_name($stmt, ':p_packageid', $packageToDelete);
+oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+// Execute the statement
+if (oci_execute($stmt)) {
+    // Check the result
+    if ($result == 1) {
+        echo "Tour package deleted successfully.\n";
+    } elseif ($result == 0) {
+        echo "No tour package found with the specified ID.\n";
+    } else {
+        echo "An error occurred during deletion.\n";
+    }
+} else {
+    $e = oci_error($stmt);
+    echo "Error executing procedure: " . $e['message'] . "\n";
+}
+
+// Close the Oracle connection
+oci_close($conn);
+?>

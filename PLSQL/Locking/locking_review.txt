@@ -1,0 +1,31 @@
+CREATE OR REPLACE PROCEDURE InsertReview (
+    p_username IN review.username%TYPE,
+    p_rating IN review.rating%TYPE,
+    p_description IN review.description%TYPE,
+    p_servicetype IN review.servicetype%TYPE
+) AS
+    v_user_reviews_count NUMBER;
+BEGIN
+    -- Check the number of reviews submitted by the user on the current date
+    SELECT COUNT(*)
+    INTO v_user_reviews_count
+    FROM review
+    WHERE username = p_username
+    AND TRUNC(reviewdate) = TRUNC(SYSDATE);
+
+    -- Check if the user has already provided 3 reviews on the current date
+    IF v_user_reviews_count >= 3 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'You have already provided 3 reviews today.');
+    END IF;
+
+    -- Insert the review if the user has not reached the limit
+    INSERT INTO review (id, username, rating, description, servicetype, reviewdate)
+    VALUES (ReviewIdSeq.NEXTVAL, p_username, p_rating, p_description, p_servicetype, SYSDATE);
+    
+    COMMIT; 
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20002, 'No user found with the provided username.');
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20003, 'An error occurred while inserting the review: ' || SQLERRM);
+END;

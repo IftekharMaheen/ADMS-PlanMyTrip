@@ -1,0 +1,151 @@
+// Admin - User Delete
+
+F1: Function - Delete User From users Table Function
+
+CREATE OR REPLACE FUNCTION DeleteFromUsers(u_username users.username%type)
+RETURN BOOLEAN IS
+BEGIN
+    DELETE FROM users WHERE username = u_username;
+    
+    SELECT COUNT(*) INTO count_exists FROM users WHERE username = u_username;
+
+    IF count_exists = 0 THEN
+        RETURN TRUE;
+    ELSE
+        RETURN FALSE;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+
+
+F2: Function - Delete User Login Info from authinfo Table Function
+
+CREATE OR REPLACE FUNCTION DeleteFromAuthInfo(u_username authinfo.username%type)
+RETURN BOOLEAN IS
+BEGIN
+    DELETE FROM authinfo WHERE username = u_username;
+    
+    SELECT COUNT(*) INTO count_exists FROM authinfo WHERE username = u_username;
+
+    IF count_exists = 0 THEN
+        RETURN TRUE;
+    ELSE
+        RETURN FALSE;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+
+
+F3: Function - Delete User Wallet Info from wallet Table Function
+
+CREATE OR REPLACE FUNCTION DeleteFromWallet(u_username VARCHAR2)
+RETURN BOOLEAN IS
+BEGIN
+    DELETE FROM wallet WHERE username = u_username;
+    
+    SELECT COUNT(*) INTO count_exists FROM wallet WHERE username = u_username;
+
+    IF count_exists = 0 THEN
+        RETURN TRUE;
+    ELSE
+        RETURN FALSE;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+
+
+P1: Procedure - Procedure to execute both the functions
+
+CREATE OR REPLACE PROCEDURE DeleteUserAccount(
+    p_username IN users.username%TYPE,
+    result_out OUT NUMBER
+)
+IS
+    result_wallet BOOLEAN;
+    result_authinfo BOOLEAN;
+    result_users BOOLEAN;
+BEGIN
+    -- Call the function to delete from the wallet table
+    result_wallet := DeleteFromWallet(p_username);
+
+    -- Call the function to delete from the authinfo table
+    result_authinfo := DeleteFromAuthInfo(p_username);
+
+    -- Call the function to delete from the users table
+    result_users := DeleteFromUsers(p_username);
+
+    -- Check if all deletions were successful
+    IF result_wallet AND result_authinfo AND result_users THEN
+        COMMIT;
+        result_out := 1;
+    ELSE
+        ROLLBACK;
+        result_out := 0;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        result_out := -1;
+END;
+
+
+// SAMPLE PHP CODE
+
+<?php
+// Function to delete a user account
+function deleteUserAccount($usernameToDelete) {
+    // Connection configuration
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    // Connect to Oracle database
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    // Prepare the Oracle statement
+    $sql = 'BEGIN DeleteUserAccount(:p_username, :result_out); END;';
+    $stmt = oci_parse($conn, $sql);
+
+    // Bind the input and output parameters
+    oci_bind_by_name($stmt, ':p_username', $usernameToDelete);
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    // Execute the statement
+    if (!oci_execute($stmt)) {
+        $e = oci_error($stmt);
+        echo "Error executing procedure: " . $e['message'] . "\n";
+        oci_close($conn);
+        return;
+    }
+
+    // Check the result
+    if ($result == 1) {
+        echo "User account deleted successfully.\n";
+    } elseif ($result == 0) {
+        echo "Failed to delete user account.\n";
+    } else {
+        echo "An error occurred during the deletion process.\n";
+    }
+
+    // Free resources and close the connection
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+// Example usage
+deleteUserAccount('user123');
+?>

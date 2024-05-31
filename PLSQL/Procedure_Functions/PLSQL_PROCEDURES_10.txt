@@ -1,0 +1,81 @@
+// Admin - Search Packages
+
+P1: Procedure - Search Tour Packages using Destination Procedure
+
+CREATE OR REPLACE PROCEDURE SearchTourPackagesByDestination(
+    p_destination IN tourpackages.destination%TYPE,
+    p_tour_cursor OUT SYS_REFCURSOR,
+    result_out OUT NUMBER
+) IS
+BEGIN
+    -- Open the cursor for the client to fetch
+    OPEN p_tour_cursor FOR
+    SELECT packageid, hotelid, packagename, destination, days, meals, price
+    FROM tourpackages
+    WHERE destination LIKE p_destination || '%';
+
+    -- Check if cursor is successfully opened
+    IF p_tour_cursor%ISOPEN THEN
+        result_out := 1;  -- Indicate that the cursor is ready with potentially available data
+    ELSE
+        result_out := 0;  -- Indicate that the cursor could not be opened
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result_out := -1; -- Indicate an unexpected error
+END;
+
+
+// Sample PHP CODE:
+
+<?php
+function searchTourPackagesByDestination($destination) {
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN SearchTourPackagesByDestination(:p_destination, :p_tour_cursor, :result_out); END;');
+    oci_bind_by_name($stmt, ':p_destination', $destination);
+    $cursor = oci_new_cursor($conn);
+    oci_bind_by_name($stmt, ':p_tour_cursor', $cursor, -1, OCI_B_CURSOR);
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    oci_execute($stmt);
+    oci_execute($cursor);  // Execute the cursor like a normal statement id
+
+    echo "<table border='1'>";
+    echo "<tr><th>Package ID</th><th>Hotel ID</th><th>Package Name</th><th>Destination</th><th>Days</th><th>Meals</th><th>Price</th></tr>";
+    while ($row = oci_fetch_array($cursor, OCI_ASSOC+OCI_RETURN_NULLS)) {
+        echo "<tr><td>" . htmlspecialchars($row['PACKAGEID']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['HOTELID']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['PACKAGENAME']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['DESTINATION']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['DAYS']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['MEALS']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['PRICE']) . "</td></tr>";
+    }
+    echo "</table>";
+
+    if ($result == 1) {
+        echo "Results displayed above.\n";
+    } elseif ($result == 0) {
+        echo "No results found.\n";
+    } else {
+        echo "An error occurred during the search.\n";
+    }
+
+    oci_free_statement($stmt);
+    oci_free_statement($cursor);
+    oci_close($conn);
+}
+
+// Example usage
+searchTourPackagesByDestination('Florida');
+?>

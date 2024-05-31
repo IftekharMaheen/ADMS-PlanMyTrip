@@ -1,0 +1,31 @@
+// SYSTEM : Log Data on users table
+
+S1: Sequence - Generate LogID
+
+CREATE SEQUENCE logid_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE;
+
+
+T1: Trigger - Perform Logging
+
+CREATE OR REPLACE TRIGGER log_trigger
+AFTER INSERT OR UPDATE OR DELETE ON users
+FOR EACH ROW
+BEGIN
+    DECLARE
+        v_logdata VARCHAR2(255);
+    BEGIN
+        IF INSERTING THEN
+            v_logdata := 'Insertion Completed';
+        ELSIF UPDATING THEN
+            v_logdata := 'Update Completed';
+        ELSIF DELETING THEN
+            v_logdata := 'Deletion Completed';
+        END IF;
+
+        INSERT INTO log_table (logid, logdata, logdate, logtime)
+        VALUES (logid_seq.NEXTVAL, v_logdata, SYSDATE, CURRENT_TIMESTAMP);
+    END;
+END;

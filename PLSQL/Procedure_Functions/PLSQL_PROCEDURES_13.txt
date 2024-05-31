@@ -1,0 +1,72 @@
+// User: Insert Review
+
+S1 - Sequence: Generate ReviewID
+
+CREATE SEQUENCE ReviewIdSeq
+START WITH 1
+INCREMENT BY 1
+NOCACHE;
+
+
+T1 - Trigger : Trigger to create ReviewID
+
+CREATE OR REPLACE TRIGGER ReviewIdBfrInsert
+BEFORE INSERT ON review
+FOR EACH ROW
+BEGIN
+  IF :new.id IS NULL THEN
+    SELECT ReviewIdSeq.NEXTVAL INTO :new.id FROM dual;
+  END IF;
+END;
+
+
+P1 - Procedure: Insert Review
+
+CREATE OR REPLACE PROCEDURE InsertReview (
+    p_username IN review.username%TYPE,
+    p_rating IN review.rating%TYPE,
+    p_description IN review.description%TYPE,
+    p_servicetype IN review.servicetype%TYPE
+) AS
+BEGIN
+    INSERT INTO review (id, username, rating, description, servicetype, reviewdate)
+    VALUES (ReviewIdSeq.NEXTVAL, p_username, p_rating, p_description, p_servicetype, SYSDATE);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        raise_application_error(-20001, 'No user found with the provided username.');
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'An error occurred while inserting the review: ' || SQLERRM);
+END;
+
+
+// Sample PHP Code
+
+<?php
+function insertReview($username, $rating, $description, $serviceType) {
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN InsertReview(:p_username, :p_rating, :p_description, :p_servicetype); END;');
+    oci_bind_by_name($stmt, ':p_username', $username);
+    oci_bind_by_name($stmt, ':p_rating', $rating);
+    oci_bind_by_name($stmt, ':p_description', $description);
+    oci_bind_by_name($stmt, ':p_servicetype', $serviceType);
+
+    oci_execute($stmt);
+
+    echo "Review inserted successfully.";
+
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+// Example usage
+insertReview('john_doe', 4.5, 'Great service!', 'Room cleaning');
+?>

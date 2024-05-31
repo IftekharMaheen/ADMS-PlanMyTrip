@@ -1,0 +1,63 @@
+// Admin - Add Contact Info
+
+P1 - Procedure: Perform Insert Operation
+
+CREATE OR REPLACE PROCEDURE AddContact(cname contactinfo.contactname%type, cemail contactinfo.email%type, cphone contactinfo.phonenumber%type, result_out OUT NUMBER)
+IS
+BEGIN
+  INSERT INTO contactinfo(contactname, email, phonenumber)
+  VALUES (cname, cemail, cphone);
+  result_out := 1;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    result_out := 0;
+END;
+
+// PHP CODE RELATED TO IT
+
+<?php
+// Connection configuration
+$connectionString = 'localhost/orcl'; // Adjust as necessary
+$username = 'oracle_user'; // Your Oracle username
+$password = 'oracle_password'; // Your Oracle password
+
+// Connect to Oracle database
+$conn = oci_connect($username, $password, $connectionString);
+if (!$conn) {
+    $e = oci_error();
+    trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+}
+
+// Prepare the Oracle statement
+$sql = 'BEGIN AddContact(:cname, :cemail, :cphone, :result_out); END;';
+$stmt = oci_parse($conn, $sql);
+
+// Contact information
+$contactName = 'John Doe';
+$email = 'john.doe@example.com';
+$phoneNumber = '1234567890';
+
+// Bind the parameters
+oci_bind_by_name($stmt, ':cname', $contactName);
+oci_bind_by_name($stmt, ':cemail', $email);
+oci_bind_by_name($stmt, ':cphone', $phoneNumber);
+oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+// Execute the statement
+if (oci_execute($stmt)) {
+    // Check the result
+    if ($result == 1) {
+        echo "Contact added successfully.\n";
+    } else {
+        echo "Failed to add contact.\n";
+    }
+} else {
+    $e = oci_error($stmt);
+    echo "Error executing procedure: " . $e['message'] . "\n";
+}
+
+// Close the Oracle connection
+oci_close($conn);
+?>

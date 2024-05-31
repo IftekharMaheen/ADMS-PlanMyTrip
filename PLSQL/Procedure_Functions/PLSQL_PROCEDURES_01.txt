@@ -1,0 +1,124 @@
+// Admin - Update Password
+
+F1 - Function: Check Current Password
+
+CREATE OR REPLACE FUNCTION VerifyCurrentPassword(uname authinfo.username, pass authinfo.password)
+RETURN BOOLEAN
+IS
+  current_password VARCHAR2(255);
+BEGIN
+  SELECT password INTO current_password FROM authinfo WHERE username = uname;
+  
+  IF current_password = pass THEN
+    RETURN TRUE;
+  ELSE
+    RETURN FALSE;
+  END IF;
+
+EXCEPTION
+  WHEN NO_DATA_FOUND OR OTHERS THEN
+    RETURN FALSE;
+END;
+
+
+F2 - Function: Update the Password
+
+CREATE OR REPLACE FUNCTION UpdatePassword(uname authinfo.username, new_pass VARCHAR2)
+RETURN BOOLEAN
+IS
+BEGIN
+  UPDATE authinfo SET password = new_pass WHERE username = uname;
+  RETURN TRUE;
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RETURN FALSE;
+END;
+
+
+P1 - Full Update Process on Procedure
+
+CREATE OR REPLACE PROCEDURE ChangePassword(uname authinfo.username, pass authinfo.password, new_pass VARCHAR2, result_out OUT NUMBER)
+IS
+  current_pass_verified BOOLEAN;
+BEGIN
+  current_pass_verified := VerifyCurrentPassword(uname, pass);
+  
+  IF current_pass_verified THEN
+    IF UpdatePassword(uname, new_pass) THEN
+      DBMS_OUTPUT.PUT_LINE('Password updated successfully.');
+      result_out := 0;
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Failed to update password.');
+      result_out := 1;
+    END IF;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Current password is incorrect.');
+    result_out := 2;
+  END IF;
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('Error occurred: ' || SQLERRM);
+    result_out := 3; 
+END;
+
+
+// SAMPLE PHP CODE:
+<?php
+// Connection configuration
+$connectionString = 'localhost/orcl'; // Change this to your Oracle connection string
+$username = 'oracle_user'; // Your Oracle username
+$password = 'oracle_password'; // Your Oracle password
+
+// Connect to Oracle database
+$conn = oci_connect($username, $password, $connectionString);
+if (!$conn) {
+    $e = oci_error();
+    trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+}
+
+// Prepare the Oracle statement
+$sql = 'BEGIN ChangePassword(:uname, :pass, :new_pass, :result_out); END;';
+$stmt = oci_parse($conn, $sql);
+
+// Parameters
+$uname = 'user123';
+$currentPassword = 'current_password';
+$newPassword = 'new_password';
+
+// Bind the parameters
+oci_bind_by_name($stmt, ':uname', $uname);
+oci_bind_by_name($stmt, ':pass', $currentPassword);
+oci_bind_by_name($stmt, ':new_pass', $newPassword);
+oci_bind_by_name($stmt, ':result_out', $result, 32, SQLT_INT);
+
+// Execute the statement
+if (oci_execute($stmt)) {
+    // Check the result
+    switch ($result) {
+        case 0:
+            echo "Password updated successfully.\n";
+            break;
+        case 1:
+            echo "Failed to update password.\n";
+            break;
+        case 2:
+            echo "Current password is incorrect.\n";
+            break;
+        case 3:
+            echo "An error occurred.\n";
+            break;
+        default:
+            echo "Unexpected result.\n";
+            break;
+    }
+} else {
+    $e = oci_error($stmt);
+    echo "Error executing procedure: " . $e['message'] . "\n";
+}
+
+// Close the Oracle connection
+oci_close($conn);
+?>

@@ -1,0 +1,76 @@
+// Admin: Search User
+
+P1: Procedure - Search User
+
+CCREATE OR REPLACE PROCEDURE SearchUserByUsername(
+    p_username IN users.username%TYPE,
+    p_user_cursor OUT SYS_REFCURSOR,
+    result_out OUT NUMBER
+) IS
+BEGIN
+    -- Open the cursor for the client to fetch
+    OPEN p_user_cursor FOR
+    SELECT username, name, email, phonenumber, dob, profilepic
+    FROM users
+    WHERE username = p_username;
+
+    -- Check if cursor is successfully opened
+    IF p_user_cursor%ISOPEN THEN
+        result_out := 1;  -- Indicate that the cursor is ready with potentially available data
+    ELSE
+        result_out := 0;  -- Indicate that the cursor could not be opened
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result_out := -1; -- Indicate an unexpected error
+END;
+
+
+// SAMPLE PHP CODE
+
+<?php
+function searchUserByUsername($username) {
+    $connectionString = 'localhost/orcl'; 
+    $username = 'oracle_user'; 
+    $password = 'oracle_password'; 
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN SearchUserByUsername(:p_username, :p_user_cursor, :result_out); END;');
+    oci_bind_by_name($stmt, ':p_username', $username);
+    $cursor = oci_new_cursor($conn);
+    oci_bind_by_name($stmt, ':p_user_cursor', $cursor, -1, OCI_B_CURSOR);
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    oci_execute($stmt);
+    oci_execute($cursor);  // Execute the cursor like a normal statement id
+
+    if ($result == 1) {
+        echo "<table>";
+        echo "<tr><th>Username</th><th>Name</th><th>Email</th><th>Phone Number</th><th>DOB</th><th>Profile Pic</th></tr>";
+        while (($row = oci_fetch_array($cursor, OCI_ASSOC+OCI_RETURN_NULLS)) != false) {
+            echo "<tr><td>" . htmlspecialchars($row['USERNAME']) . "</td>";
+            echo "<td>" . htmlspecialchars($row['NAME']) . "</td>";
+            echo "<td>" . htmlspecialchars($row['EMAIL']) . "</td>";
+            echo "<td>" . htmlspecialchars($row['PHONENUMBER']) . "</td>";
+            echo "<td>" . htmlspecialchars($row['DOB']) . "</td>";
+            echo "<td>" . htmlspecialchars($row['PROFILEPIC']) . "</td></tr>";
+        }
+        echo "</table>";
+    } elseif ($result == 0) {
+        echo "No data found.";
+    } else {
+        echo "An error occurred.";
+    }
+
+    oci_free_statement($stmt);
+    oci_free_statement($cursor);
+    oci_close($conn);
+}
+searchUserByUsername('user123');
+?>

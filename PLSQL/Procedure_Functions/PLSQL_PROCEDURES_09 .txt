@@ -1,0 +1,73 @@
+// Admin - Search Contact Info
+
+CREATE OR REPLACE PROCEDURE SearchContactByName(
+    p_contactname IN contactinfo.contactname%TYPE,
+    p_contact_cursor OUT SYS_REFCURSOR,
+    result_out OUT NUMBER
+) IS
+BEGIN
+    OPEN p_contact_cursor FOR
+    SELECT contactname, email, phonenumber
+    FROM contactinfo
+    WHERE contactname LIKE p_contactname || '%';
+
+    IF p_contact_cursor%ISOPEN THEN
+        result_out := 1;
+    ELSE
+        result_out := 0;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        result_out := -1;
+END;
+
+
+// Sample PHP CODE
+
+<?php
+function searchContactByName($contactName) {
+    $connectionString = 'localhost/orcl'; 
+    $username = 'oracle_user'; 
+    $password = 'oracle_password'; 
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN SearchContactByName(:p_contactname, :p_contact_cursor, :result_out); END;');
+    oci_bind_by_name($stmt, ':p_contactname', $contactName);
+    $cursor = oci_new_cursor($conn);
+    oci_bind_by_name($stmt, ':p_contact_cursor', $cursor, -1, OCI_B_CURSOR);
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    oci_execute($stmt);
+    oci_execute($cursor);  // Execute the cursor like a normal statement id
+
+    echo "<table border='1'>";
+    echo "<tr><th>Contact Name</th><th>Email</th><th>Phone Number</th></tr>";
+    while ($row = oci_fetch_array($cursor, OCI_ASSOC+OCI_RETURN_NULLS)) {
+        echo "<tr><td>" . htmlspecialchars($row['CONTACTNAME']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['EMAIL']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['PHONENUMBER']) . "</td></tr>";
+    }
+    echo "</table>";
+
+    if ($result == 1) {
+        echo "Results displayed above.\n";
+    } elseif ($result == 0) {
+        echo "No results found.\n";
+    } else {
+        echo "An error occurred during the search.\n";
+    }
+
+    oci_free_statement($stmt);
+    oci_free_statement($cursor);
+    oci_close($conn);
+}
+
+// Example usage
+searchContactByName('John');
+?>

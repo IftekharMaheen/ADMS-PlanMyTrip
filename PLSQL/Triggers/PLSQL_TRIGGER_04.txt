@@ -1,0 +1,44 @@
+// User : Wallet Update Trigger at Certain Time
+
+T1: Trigger - Check Time
+
+CREATE OR REPLACE TRIGGER PreventWalletUpdate
+BEFORE UPDATE ON wallet
+DECLARE
+    v_current_hour NUMBER;
+BEGIN
+    SELECT TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) INTO v_current_hour FROM dual;
+
+    IF v_current_hour >= 1 AND v_current_hour <= 7 THEN
+        raise_application_error(-20001, 'Wallet update is not allowed between 01:00 AM and 07:00 AM.');
+    END IF;
+END;
+
+
+// Updated PHP Function:
+
+function deposite($balance, $paymentMethod, $phone) {
+    $con = getConnection();
+    $sql = 'BEGIN update_balance_by_phonenumber(:p_phonenumber, :p_balance, :p_paymentMethod); END;';
+ 
+    $stid = oci_parse($con, $sql);
+ 
+    oci_bind_by_name($stid, ':p_phonenumber', $phone);
+    oci_bind_by_name($stid, ':p_balance', $balance);
+    oci_bind_by_name($stid, ':p_paymentMethod', $paymentMethod);
+ 
+    try {
+        $r = oci_execute($stid);
+    } catch (Exception $e) {
+        $error = oci_error($stid);
+        oci_free_statement($stid);
+        oci_close($con);
+        echo "Error: " . $error['message'];
+        return false;
+    }
+ 
+    oci_free_statement($stid);
+    oci_close($con);
+ 
+    return $r;
+}

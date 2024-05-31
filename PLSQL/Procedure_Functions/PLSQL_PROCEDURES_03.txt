@@ -1,0 +1,99 @@
+// Admin - Add Hotel Packages
+
+F1 - Function: Search If Hotel Exists or Not
+
+CREATE OR REPLACE FUNCTION CheckHotelID(hotel_id hotelmgt.hotelid%type)
+RETURN BOOLEAN IS
+  v_count NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_count FROM hotelmgt WHERE hotelid = hotel_id;
+  
+  IF v_count > 0 THEN
+    RETURN TRUE;
+  ELSE
+    RETURN FALSE;
+  END IF;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN FALSE;
+END;
+
+
+P1 - Procedure: Execute the Search and Insert operation
+
+CREATE OR REPLACE PROCEDURE AddTourPackage(pid tourpackages.packageid%type, hid tourpackages.hotelid%type, pname tourpackages.packagename%type, dest tourpackages.destination%type, num_days tourpackages.days%type, meal_plan tourpackages.meals%type, pack_price tourpackages.price%type, result_out OUT NUMBER)
+IS
+BEGIN
+  IF CheckHotelID(hid) THEN
+    INSERT INTO tourpackages(packageid, hotelid, packagename, destination, days, meals, price)
+    VALUES (pid, hid, pname, dest, num_days, meal_plan, pack_price);
+    
+    result_out := 1;
+  ELSE
+    result_out := 0;
+  END IF;
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    result_out := -1;
+END;
+
+
+// SAMPLE PHP CODE
+
+<?php
+// Connection configuration
+$connectionString = 'localhost/orcl'; // Adjust as necessary
+$username = 'oracle_user'; // Your Oracle username
+$password = 'oracle_password'; // Your Oracle password
+
+// Connect to Oracle database
+$conn = oci_connect($username, $password, $connectionString);
+if (!$conn) {
+    $e = oci_error();
+    trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+}
+
+// Prepare the Oracle statement
+$sql = 'BEGIN AddTourPackage(:pid, :hid, :pname, :dest, :days, :meals, :price, :result_out); END;';
+$stmt = oci_parse($conn, $sql);
+
+// Package information
+$packageID = 101;
+$hotelID = 1; // Assume 1 exists, test with valid/invalid IDs
+$packageName = 'Summer Escape';
+$destination = 'Maldives';
+$days = 7;
+$meals = 'All Inclusive';
+$price = 2999.99;
+
+// Bind the parameters
+oci_bind_by_name($stmt, ':pid', $packageID);
+oci_bind_by_name($stmt, ':hid', $hotelID);
+oci_bind_by_name($stmt, ':pname', $packageName);
+oci_bind_by_name($stmt, ':dest', $destination);
+oci_bind_by_name($stmt, ':days', $days);
+oci_bind_by_name($stmt, ':meals', $meals);
+oci_bind_by_name($stmt, ':price', $price);
+oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+// Execute the statement
+if (oci_execute($stmt)) {
+    // Check the result
+    if ($result == 1) {
+        echo "Package added successfully.\n";
+    } else if ($result == 0) {
+        echo "Hotel ID does not exist.\n";
+    } else {
+        echo "Error occurred while adding package.\n";
+    }
+} else {
+    $e = oci_error($stmt);
+    echo "Error executing procedure: " . $e['message'] . "\n";
+}
+
+// Close the Oracle connection
+oci_close($conn);
+?>

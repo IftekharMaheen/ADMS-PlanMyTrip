@@ -1,0 +1,96 @@
+// User : Add Wallet Value
+
+P1: Procedure - Check Current Wallet Balance
+
+CREATE OR REPLACE PROCEDURE GetOldBalance (
+    p_phonenumber IN wallet.phonenumber%type,
+    p_balance OUT wallet.balance%type,
+    result_out OUT NUMBER
+) AS
+BEGIN
+    SELECT balance INTO p_balance
+    FROM wallet
+    WHERE phonenumber = p_phonenumber;
+
+    result_out := 1; -- Indicate success
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        raise_application_error(-20001, 'No user found with the provided phone number.');
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'An error occurred while fetching old balance: ' || SQLERRM);
+END;
+
+
+P2: Procedure - Insert the New Balance
+
+CREATE OR REPLACE PROCEDURE update_balance_by_phonenumber (
+    p_phonenumber IN wallet.phonenumber%type,
+    p_balance IN wallet.balance%type,
+    p_paymentmethod IN wallet.paymentmethod%type
+) AS
+BEGIN
+    UPDATE wallet
+    SET balance = p_balance, paymentmethod = p_paymentmethod
+    WHERE phonenumber = p_phonenumber;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        raise_application_error(-20001, 'No user found with the provided phone number.');
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'An error occurred while updating balance: ' || SQLERRM);
+END;
+
+
+// Sample PHP Code:
+
+<?php
+function updateBalanceByPhoneNumber($phoneNumber, $newBalance) {
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN update_balance_by_phonenumber(:p_phonenumber, :p_balance); END;');
+    oci_bind_by_name($stmt, ':p_phonenumber', $phoneNumber);
+    oci_bind_by_name($stmt, ':p_balance', $newBalance);
+
+    oci_execute($stmt);
+
+    echo "Balance updated successfully for phone number $phoneNumber.";
+
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+function getOldBalance($phoneNumber) {
+    $connectionString = 'localhost/orcl'; // Adjust as necessary
+    $username = 'oracle_user'; // Your Oracle username
+    $password = 'oracle_password'; // Your Oracle password
+
+    $conn = oci_connect($username, $password, $connectionString);
+    if (!$conn) {
+        $e = oci_error();
+        trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+    }
+
+    $stmt = oci_parse($conn, 'BEGIN GetOldBalance(:p_phonenumber, :p_balance, :result_out); END;');
+    oci_bind_by_name($stmt, ':p_phonenumber', $phoneNumber);
+    oci_bind_by_name($stmt, ':p_balance', $oldBalance);
+    oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+    oci_execute($stmt);
+
+    echo "Old balance for phone number $phoneNumber: $oldBalance";
+
+    oci_free_statement($stmt);
+    oci_close($conn);
+}
+
+// Example usage
+updateBalanceByPhoneNumber('1234567890', 1500); // Update balance to 1500 for phone number '1234567890'
+getOldBalance('1234567890'); // Retrieve old balance for phone number '1234567890'
+?>

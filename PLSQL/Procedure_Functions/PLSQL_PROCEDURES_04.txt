@@ -1,0 +1,147 @@
+// Admin - Add Hotel Accounts
+
+S1 - Sequence: Generate HotelID
+
+CREATE SEQUENCE hotelid_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE;
+
+
+T1 - Trigger : Trigger to create HotelID
+
+CREATE OR REPLACE TRIGGER hotelid_bfr_insert
+BEFORE INSERT ON hotelmgt
+FOR EACH ROW
+BEGIN
+  IF :new.hotelid IS NULL THEN
+    SELECT hotelid_seq.NEXTVAL INTO :new.hotelid FROM dual;
+  END IF;
+END;
+
+F1 - Function : Function to Insert Hotel Data
+
+CREATE OR REPLACE FUNCTION InsertHotelMgt(
+    u_username hotelmgt.username%type,
+    u_email hotelmgt.email%type,
+    u_hotelname hotelmgt.hotelname%type,
+    u_phone hotelmgt.phonenumber%type,
+    u_logo hotelmgt.logo%type)
+RETURN BOOLEAN IS
+BEGIN
+    INSERT INTO hotelmgt(username, email, hotelname, phonenumber, logo)
+    VALUES (u_username, u_email, u_hotelname, u_phone, u_logo);
+    RETURN TRUE;
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+
+F2 - Function : Function to Insert Hotel Auth Data
+
+CREATE OR REPLACE FUNCTION InsertAuthInfo(
+    u_username authinfo.username%type,
+    u_password authinfo.password%type,
+    u_role authinfo.role%type)
+RETURN BOOLEAN IS
+BEGIN
+    INSERT INTO authinfo(username, password, role)
+    VALUES (u_username, u_password, u_role);
+    
+    RETURN TRUE;
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN FALSE;
+END;
+
+P1 - Procedure: Insert Hotel Account
+
+CREATE OR REPLACE PROCEDURE AddHotel(
+    uname hotelmgt.username%type,
+    uemail hotelmgt.email%type,
+    hname hotelmgt.hotelname%type,
+    phone hotelmgt.phonenumber%type,
+    hlogo hotelmgt.logo%type,
+    auth_username authinfo.username%type,
+    auth_password authinfo.password%type,
+    auth_role authinfo.role%type,
+    result_out OUT NUMBER
+) IS
+    hotel_result BOOLEAN;
+    auth_result BOOLEAN;
+BEGIN
+    hotel_result := InsertHotelMgt(uname, uemail, hname, phone, hlogo);
+    auth_result := InsertAuthInfo(auth_username, auth_password, auth_role);
+    
+    IF hotel_result AND auth_result THEN
+        result_out := 0;
+    ELSE
+        ROLLBACK;
+        result_out := 1;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        result_out := 2;
+END;
+
+
+// SAMPLE PHP CODE
+
+<?php
+// Connection configuration
+$connectionString = 'localhost/orcl'; // Adjust as necessary
+$username = 'oracle_user'; // Your Oracle username
+$password = 'oracle_password'; // Your Oracle password
+
+// Connect to Oracle database
+$conn = oci_connect($username, $password, $connectionString);
+if (!$conn) {
+    $e = oci_error();
+    trigger_error(htmlentities($e['message'], ENT_QUOTES), E_USER_ERROR);
+}
+
+// Prepare the Oracle statement
+$sql = 'BEGIN AddHotel(:uname, :uemail, :hname, :phone, :hlogo, :auth_username, :auth_password, :auth_role, :result_out); END;';
+$stmt = oci_parse($conn, $sql);
+
+// Hotel and auth info
+$username = 'HotelManager';
+$email = 'manager@example.com';
+$hotelName = 'Seaside Resort';
+$phoneNumber = '1234567890';
+$logo = 'http://example.com/logo.png';
+$authUsername = $username;
+$authPassword = 'SecurePass123';
+$authRole = 'hotelmgr';
+
+// Bind the parameters
+oci_bind_by_name($stmt, ':uname', $username);
+oci_bind_by_name($stmt, ':uemail', $email);
+oci_bind_by_name($stmt, ':hname', $hotelName);
+oci_bind_by_name($stmt, ':phone', $phoneNumber);
+oci_bind_by_name($stmt, ':hlogo', $logo);
+oci_bind_by_name($stmt, ':auth_username', $authUsername);
+oci_bind_by_name($stmt, ':auth_password', $authPassword);
+oci_bind_by_name($stmt, ':auth_role', $authRole);
+oci_bind_by_name($stmt, ':result_out', $result, -1, SQLT_INT);
+
+// Execute the statement
+if (oci_execute($stmt)) {
+    // Check the result
+    if ($result == 0) {
+        echo "Hotel and associated auth information added successfully.\n";
+    } elseif ($result == 1) {
+        echo "Failed to add hotel and/or auth information.\n";
+    }
+} else {
+    $e = oci_error($stmt);
+    echo "Error executing procedure: " . $e['message'] . "\n";
+}
+
+// Close the Oracle connection
+oci_close($conn);
+?>
